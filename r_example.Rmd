@@ -1,0 +1,113 @@
+
+#Preliminary Evaluation of Technical Skills
+#Qaisar,Shah
+
+**Part 1: Startup and Import the data in the Rstudio.**
+
+```{r}
+rm(list = ls())
+require(readxl) # to read excel file
+require(data.table) # to split the date column  
+require(ggplot2)  # to plot
+
+setwd("D:/")
+
+## Read Data 
+data <- read_xlsx("skill_eval.xlsx",skip = 1)
+head(data)
+```
+
+**Part 2: Aggregates the time series to monthly/annual scale (sums)**
+
+```{r}
+# Split the date
+setDT(data)[,paste0(c("Year","Month","Day")) :=tstrsplit(date,"-")]
+head(data)
+#Aggregate
+Year <- aggregate(data$`rainfall [mm/day]`,by=list(data$Year),FUN = sum)
+colnames(Year)<-c("Year","P[mm/a]")
+head(Year)
+month <- aggregate(data$`rainfall [mm/day]`,by=list(data$Year,data$Month),FUN=sum)
+colnames(month)<-c("Year","Month","P[mm/a]")
+month$Month<-as.factor(month$Month)
+head(month)
+
+```
+
+
+**Part 3: Line plot and quantile plot for annual sums**
+```{r}
+# Line plot
+p<- ggplot(data = Year)+geom_line(aes(Year,`P[mm/a]`),group=1,colour="blue")+
+  theme(panel.grid.major = element_line(colour = "darkgrey", size = 0.1),panel.grid.minor = element_blank(),panel.background = element_blank())+
+  theme(panel.border = element_rect(colour="black",fill = NA))+ylim(250,1000)+scale_x_discrete(breaks=seq(1950, 2020, 10))+xlab("Years (1950-2019)")+
+  ggtitle("Annual Precipitation for Prague (Czech Republic)")
+
+# chage the colour of title, move it into centre (hjust=0.5)
+p<-p + theme(plot.title = element_text(color="black", size=14, face="bold",hjust = 0.5))
+
+#ggsave(p,filename = paste("D:/line_plot",".png",sep=""), width = 30, height = 10, units = "cm", dpi = 300)
+
+p
+
+# Quantile plot
+#png(filename = paste(("Quantile_plot"),".png",sep=""), width = 28, height = 10, units = "cm", res = 300)
+
+qqnorm(Year$`P[mm/a]`, col="blue",main="Quantile plot of Precipitation for Prague (Czech Republic)")
+qqline(Year$`P[mm/a]`, lty=2, lwd=1, col="blue")
+
+#dev.off()
+```
+
+**Part 4: Draw boxplots and barplots for monthly sums**
+```{r}
+# Boxplot
+p1<-ggplot(data = month,aes(x=Month,y=`P[mm/a]`))+geom_boxplot(fill="skyblue")+
+  theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank(),panel.background = element_blank())+
+  theme(panel.border = element_rect(colour="black",fill = NA))+
+  ggtitle("Boxplot of Monthly Precipitation for Prague (Czech Republic)")
+p1<-p1 + theme(plot.title = element_text(color="black", size=14, face="bold",hjust = 0.5))
+
+
+#ggsave(p1,filename = paste("D:/box_plot",".png",sep=""), width = 30, height = 10, units = "cm", dpi = 300)
+p1
+
+# Barplot  
+p2<-ggplot(data = month)+geom_bar(aes(x=Month,y=`P[mm/a]`),fill="skyblue",colour="black",stat = "summary", fun.y = "mean")+
+    theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank(),panel.background = element_blank())+
+    theme(panel.border = element_rect(colour="black",fill = NA))+
+  ggtitle("Barplot of Mean Monthly Precipitation for Prague (Czech Republic)")
+p2<-p2 + theme(plot.title = element_text(color="black", size=14, face="bold",hjust = 0.5))
+
+  
+#ggsave(p2,filename = paste("D:/bar_plot",".png",sep=""), width = 30, height = 10, units = "cm", dpi = 300)
+p2
+
+```
+
+**Part 5: Fit Model**
+```{r}
+n<-1:70 #require to assign the number of year, while we can fit the line with the 1951 or so
+
+model_year<-lm(Year$`P[mm/a]`~n)  #fit the linear model
+summary(model_year)
+
+slope_month<-model_year$coefficients[2]
+p_value<-summary(model_year)$coefficients[1,4]  
+
+## Here p_value is less than 0.05 so yearly trend is significant
+
+
+#GGPLot
+p3<-ggplot(data = Year)+geom_line(aes(Year,`P[mm/a]`),group=1,colour="blue")+geom_line(aes(Year,fitted(model_year)),group=1,colour="red")+
+  theme(panel.grid.major = element_line(colour = "darkgrey", size = 0.1),panel.grid.minor = element_blank(),panel.background = element_blank())+
+  theme(panel.border = element_rect(colour="black",fill = NA))+ylim(250,1000)+scale_x_discrete(breaks=seq(1950, 2020, 10))+xlab("Years (1950-2019)")+
+  ggtitle("Annual Precipitation[blue] and Fitted[red] for Prague (Czech Republic)")
+
+#ggsave(p3,filename = paste("D:/trend_plot",".png",sep=""), width = 30, height = 10, units = "cm", dpi = 300)
+
+p3
+```
+
+
+# The End.
